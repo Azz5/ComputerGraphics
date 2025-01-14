@@ -27,4 +27,4 @@ Run the Main class:
 java Main
 ```
 
-As this project is written in java it works in mac, linux, and windows without configuration needed.
+As this project is written in java it works in mac, linux, and windows without needing instructions.
