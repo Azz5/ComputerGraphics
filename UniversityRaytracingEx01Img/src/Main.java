@@ -1,4 +1,7 @@
+import javax.imageio.ImageIO;
 import java.awt.*;
+import java.awt.image.BufferedImage;
+import java.io.File;
 import java.util.ArrayList;
 
 public class Main {
@@ -14,20 +17,29 @@ public class Main {
 
     public static void main(String[] args) {
         Vector3 origin = new Vector3(0, 0, 0);
-        RayCanvas canvas = new RayCanvas(Cw, Ch, BACKGROUND_COLOR);
+        BufferedImage img = new BufferedImage(Cw+1, Ch+1, BufferedImage.TYPE_INT_ARGB);
 
-        // Trace rays and set pixels
         for (int x = -Cw / 2; x < Cw / 2; x++) {
             for (int y = -Ch / 2; y < Ch / 2; y++) {
                 Vector3 directionVector = CanvasToViewport(x, y);
                 Color color = traceRay(origin, directionVector, 1.0, Double.MAX_VALUE);
-                canvas.setPixel(x, y, color);
+                int px = (Cw / 2) + x;
+                int py = (Ch / 2) - y;
+                img.setRGB(px, py, color.getRGB());
             }
         }
-
-        // Create a frame to display the canvas
-        Frame frame = new Frame("RayCanvas Example");
-        frame.add(canvas);
+        try {
+            ImageIO.write(img, "PNG", new File("output.png"));
+            System.out.println("Image saved as output.png");
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        Frame frame = new Frame("Ray Tracing Example") {
+            @Override
+            public void paint(Graphics g) {
+                g.drawImage(img, 0, 0, null);
+            }
+        };
         frame.setSize(Cw, Ch);
         frame.setVisible(true);
 
@@ -36,6 +48,7 @@ public class Main {
                 System.exit(0);
             }
         });
+
     }
 
     private static Color traceRay(Vector3 origin, Vector3 d, double t_min, double t_max) {
