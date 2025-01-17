@@ -38,7 +38,7 @@ public class Main {
         });
     }
 
-    private static Color traceRay(Vector3 origin, Vector3 d, double t_min, double t_max) {
+    private static Color traceRay(Vector3 origin, Vector3 d, double t_min, double t_max) { // t_min is 1 and t_max Double.MaxNumber
         double closest_t = Double.MAX_VALUE;
         Sphere closest_Sphere = null;
 

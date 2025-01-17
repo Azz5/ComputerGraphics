@@ -1,0 +1,7 @@
+# ninja log v6
+15	175	7586512387346485	CMakeFiles/RayTracingExc1CPP.dir/Vector3.cpp.obj	7a23546b46656c9b
+1064	1278	7586512610710857	RayTracingExc1CPP.exe	cb599052e8fd0954
+44	1062	7586512600510279	CMakeFiles/RayTracingExc1CPP.dir/main.cpp.obj	eeb5962a8cdcc902
+34	217	7588432518380828	CMakeFiles/RayTracingExc1CPP.dir/Vector3.cpp.obj	7a23546b46656c9b
+21	1823	7588432518260783	CMakeFiles/RayTracingExc1CPP.dir/main.cpp.obj	eeb5962a8cdcc902
+1824	2369	7588432536284537	RayTracingExc1CPP.exe	cb599052e8fd0954
