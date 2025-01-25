@@ -5,17 +5,21 @@ import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Map;
 
 public class Main {
+
+    record SphereAndClosestT(Sphere sphereValue, Double doubleValue) {}
+
     final static int Cw = 500; // Canvas width
     final static int Ch = 500; // Canvas height
-    final static Color BACKGROUND_COLOR = Color.WHITE;
+    final static Color BACKGROUND_COLOR = Color.BLACK;
 
     final static Sphere[] spheres = new Sphere[] {
-            new Sphere(new Vector3(0, -1, 3), 1, Color.RED,500),
-            new Sphere(new Vector3(2, 0, 4), 1, Color.BLUE,500),
-            new Sphere(new Vector3(-2, 0, 4), 1, Color.GREEN,10),
-            new Sphere(new Vector3(0,-5001,0),5000,Color.YELLOW,1000),
+            new Sphere(new Vector3(0, -1, 3), 1,0.2,Color.RED,500),
+            new Sphere(new Vector3(2, 0, 4), 1,0.3,Color.BLUE,500),
+            new Sphere(new Vector3(-2, 0, 4), 1,0.4,Color.GREEN,10),
+            new Sphere(new Vector3(0,-5001,0),5000,0.5,Color.YELLOW,1000),
     };
 
     final static Light[] lights = new Light[] {
@@ -34,7 +38,7 @@ public class Main {
         for (int x = -width / 2; x < width / 2; x++) {
             for (int y = -height / 2; y < height / 2; y++) {
                 Vector3 direction = CanvasToViewport(x, y);
-                Color color = traceRay(origin, direction, 1.0, Double.MAX_VALUE);
+                Color color = traceRay(origin, direction, 1.0, Double.MAX_VALUE,3);
                 int px = (width / 2) + x;
                 int py = (height / 2) - y;
                 img.setRGB(px, py, color.getRGB());
@@ -45,8 +49,7 @@ public class Main {
         try {
             ImageIO.write(img, "PNG", new File("output.png"));
             System.out.println("Image saved.");
-        } catch (IOException e) {
-            e.printStackTrace();
+        } catch (IOException _) {
         }
 
         // Display image in a Swing frame (thread-safe)
@@ -60,10 +63,46 @@ public class Main {
         });
     }
 
-    private static Color traceRay(Vector3 origin, Vector3 d, double t_min, double t_max) {
-        double closest_t = Double.MAX_VALUE;
-        Sphere closest_Sphere = null;
+    private static Color traceRay(Vector3 origin, Vector3 d, double t_min, double t_max, int recursion_depth) {
+        SphereAndClosestT closestIntersection = ClosestIntersection(origin,d,t_min,t_max);
 
+        double closest_t = closestIntersection.doubleValue;
+        Sphere closest_Sphere = closestIntersection.sphereValue;
+
+        if (closest_Sphere == null) {
+            return BACKGROUND_COLOR;
+        }
+
+        Vector3 P = origin.add(d.mul(closest_t));
+        Vector3 N = P.subtract(closest_Sphere.getCenter());
+        N = N.div(N.length());
+
+        double lighting = ComputeLighting(P,N,d.mul(-1),closest_Sphere.getSpecular());
+        double ColorR = Math.min(255,closest_Sphere.getColor().getRed() * lighting);
+        double ColorG = Math.min(255,closest_Sphere.getColor().getGreen() * lighting);
+        double ColorB = Math.min(255,closest_Sphere.getColor().getBlue() * lighting);
+
+        Color local_color = new Color((int) ColorR, (int) ColorG, (int) ColorB);
+
+        // If we hit the  recursion limit or the object is not reflective we are done.
+        double r = closest_Sphere.getReflective();
+        if (recursion_depth <= 0 || r <= 0){
+            return local_color;
+        }
+
+        Vector3 R = ReflectRay(d.mul(-1),N);
+        Color reflectedColor = traceRay(P,R,0.001,Double.MAX_VALUE,recursion_depth-1);
+        ColorR = Math.min(255,reflectedColor.getRed() * r + (1 - r) * local_color.getRed());
+        ColorG = Math.min(255,reflectedColor.getGreen() * r + (1 - r) * local_color.getGreen() );
+        ColorB = Math.min(255,reflectedColor.getBlue() * r + (1 - r) * local_color.getBlue());
+
+        return new Color((int) ColorR, (int) ColorG, (int) ColorB);
+
+    }
+
+    private static SphereAndClosestT ClosestIntersection(Vector3 origin, Vector3 d, double t_min, double t_max){
+        Double closest_t = Double.MAX_VALUE;
+        Sphere closest_Sphere = null;
         for (Sphere sphere : spheres) {
             ArrayList<Double> AllT = IntersectRaySphere(origin, d, sphere);
             double t1 = AllT.get(0);
@@ -79,20 +118,8 @@ public class Main {
             }
         }
 
-        if (closest_Sphere == null) {
-            return BACKGROUND_COLOR;
-        }
+        return new SphereAndClosestT(closest_Sphere,closest_t);
 
-        Vector3 P = origin.add(d.mul(closest_t));
-        Vector3 N = P.subtract(closest_Sphere.getCenter());
-        N = N.div(N.length());
-
-        double lighting = ComputeLighting(P,N,d.mul(-1),closest_Sphere.specular);
-        double ColorR = Math.min(255,closest_Sphere.getColor().getRed() * lighting);
-        double ColorG = Math.min(255,closest_Sphere.getColor().getGreen() * lighting);
-        double ColorB = Math.min(255,closest_Sphere.getColor().getBlue() * lighting);
-
-        return new Color((int) ColorR, (int) ColorG, (int) ColorB);
     }
 
     private static ArrayList<Double> IntersectRaySphere(Vector3 origin, Vector3 d, Sphere sphere) {
@@ -129,6 +156,9 @@ public class Main {
 
     private static Double ComputeLighting(Vector3 P, Vector3 N,Vector3 V, double s) {
         Double i = 0.0;
+        Double t_max;
+        Double shadow_t;
+        Sphere shadow_sphere;
         Vector3 L;
         for (Light light : lights){
             if (light.getType() == Light.Type.Ambient) {
@@ -136,9 +166,20 @@ public class Main {
             } else {
                 if (light.getType() == Light.Type.Point) {
                     L = light.getPosition().subtract(P);
+                    t_max = 1.0;
                 } else {
                     L = light.getDirection();
+                    t_max = Double.MAX_VALUE;
                 }
+
+                // Shadow Check
+                SphereAndClosestT shadowChecks = ClosestIntersection(P,L,0.001, t_max);
+                shadow_t = shadowChecks.doubleValue;
+                shadow_sphere = shadowChecks.sphereValue;
+                if (shadow_sphere != null) {
+                    continue;
+                }
+
                 // Diffuse
                 double n_dot_l = N.dot(L);
                 if (n_dot_l > 0) {
@@ -146,7 +187,7 @@ public class Main {
                 }
 
                 if (s != -1) {
-                    Vector3 R = N.mul(2).mul(N.dot(L)).subtract(L);
+                    Vector3 R = ReflectRay(L,N);
                     double r_dot_v = R.dot(V);
                     if (r_dot_v > 0) {
                         i += light.getIntensity() * Math.pow(r_dot_v/(R.length() * V.length()),s);
@@ -156,4 +197,11 @@ public class Main {
         }
         return i;
     }
+
+
+    private static Vector3 ReflectRay(Vector3 L, Vector3 N){
+        return N.mul(2).mul(N.dot(L)).subtract(L);
+    }
+
+
 }
