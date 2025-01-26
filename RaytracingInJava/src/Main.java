@@ -5,21 +5,23 @@ import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Map;
+import java.util.concurrent.ThreadLocalRandom;
+import java.util.stream.IntStream;
 
 public class Main {
 
     record SphereAndClosestT(Sphere sphereValue, Double doubleValue) {}
 
-    final static int Cw = 500; // Canvas width
-    final static int Ch = 500; // Canvas height
+    final static int Cw = 400; // Canvas width
+    final static int Ch = 400; // Canvas height
     final static Color BACKGROUND_COLOR = Color.BLACK;
 
     final static Sphere[] spheres = new Sphere[] {
-            new Sphere(new Vector3(0, -1, 3), 1,0.2,Color.RED,500),
-            new Sphere(new Vector3(2, 0, 4), 1,0.3,Color.BLUE,500),
-            new Sphere(new Vector3(-2, 0, 4), 1,0.4,Color.GREEN,10),
-            new Sphere(new Vector3(0,-5001,0),5000,0.5,Color.YELLOW,1000),
+            new Sphere(new Vector3(0, -1, 3), 1.,0.2,Color.RED,500.,1,0.5),
+            new Sphere(new Vector3(2, 0, 4), 1.,0.3,Color.BLUE,500.,0,0.0),
+            new Sphere(new Vector3(-2, 0, 4), 1.,0.4,Color.GREEN,100.,0,0.0),
+            new Sphere(new Vector3(0, 0, 7), 1.5,0.2,Color.WHITE,10.,0,0.0),
+            new Sphere(new Vector3(0,-5001,0),5000.,0.5,Color.YELLOW,1000.,0,0.0),
     };
 
     final static Light[] lights = new Light[] {
@@ -29,25 +31,20 @@ public class Main {
     };
 
     public static void main(String[] args) {
-        Vector3 origin = new Vector3(0, 0, 0);
-        int width = Cw; // Ensure Cw/Ch are defined as even integers
-        int height = Ch;
-        BufferedImage img = new BufferedImage(width+1, height + 1, BufferedImage.TYPE_INT_ARGB);
 
-        // Ray tracing loop
-        for (int x = -width / 2; x < width / 2; x++) {
-            for (int y = -height / 2; y < height / 2; y++) {
-                Vector3 direction = CanvasToViewport(x, y);
-                Color color = traceRay(origin, direction, 1.0, Double.MAX_VALUE,3);
-                int px = (width / 2) + x;
-                int py = (height / 2) - y;
-                img.setRGB(px, py, color.getRGB());
-            }
-        }
+        Camera camera = new Camera(new Vector3(0, 0, 0) );
+        BufferedImage img = new BufferedImage(Cw+ 1, Ch+ 1, BufferedImage.TYPE_INT_RGB);
+
+        IntStream.range(0, Cw * Ch).parallel().forEach(i -> {
+            int x = (i / Ch) - (Cw / 2);
+            int y = (i % Ch) - (Ch / 2);
+            Color color = SuperSampling(camera,x,y,16);
+            putPixel(Cw, x, Ch, y, img, color);
+        });
 
         // Save image
         try {
-            ImageIO.write(img, "PNG", new File("output.png"));
+            ImageIO.write(img, "PNG", new File("output2.png"));
             System.out.println("Image saved.");
         } catch (IOException _) {
         }
@@ -63,43 +60,165 @@ public class Main {
         });
     }
 
-    private static Color traceRay(Vector3 origin, Vector3 d, double t_min, double t_max, int recursion_depth) {
-        SphereAndClosestT closestIntersection = ClosestIntersection(origin,d,t_min,t_max);
+    private static Color SuperSampling(Camera camera, int x, int y, int samplingFactor) {
+        int red = 0;
+        int green = 0;
+        int blue = 0;
+        int totalSamples = samplingFactor * samplingFactor;
 
+        // Stratified sampling with jitter
+        ColorSum sum = IntStream.range(0, totalSamples)
+                .parallel()
+                .mapToObj(i -> {
+                    int dx = i / samplingFactor;
+                    int dy = i % samplingFactor;
+
+                    // Jittered sampling with ThreadLocalRandom
+                    double jitterX = ThreadLocalRandom.current().nextDouble(0.5);
+                    double jitterY = ThreadLocalRandom.current().nextDouble(0.5);
+                    double sampleX = x + (dx + jitterX) / samplingFactor;
+                    double sampleY = y + (dy + jitterY) / samplingFactor;
+
+                    // Compute ray direction and trace
+                    Vector3 direction = camera.getRotation().transform(
+                            CanvasToViewport(sampleX, sampleY)
+                    );
+                    Color color = traceRay(camera.getPosition(), direction, 1.0, Double.MAX_VALUE, 3);
+
+                    return new ColorSum(color.getRed(), color.getGreen(), color.getBlue());
+                })
+                .reduce(new ColorSum(0, 0, 0), ColorSum::add);
+        // Gamma correction parameters
+        final double gamma = 1 ; /* 1.0 / 2.2; // Standard sRGB gamma Not needed */
+        final double invTotal = 1.0 / totalSamples;
+
+        // Process each channel with proper gamma correction
+        int avgRed = processChannel(sum.red, invTotal, gamma);
+        int avgGreen = processChannel(sum.green, invTotal, gamma);
+        int avgBlue = processChannel(sum.blue, invTotal, gamma);
+
+        return new Color(clamp(avgRed), clamp(avgGreen), clamp(avgBlue));
+    }
+
+    private record ColorSum(int red, int green, int blue) {
+
+        public ColorSum add(ColorSum other) {
+                return new ColorSum(
+                        this.red + other.red,
+                        this.green + other.green,
+                        this.blue + other.blue
+                );
+            }
+        }
+    private static int processChannel(int channelSum, double invTotal, double gamma) {
+        // Normalize -> Gamma correct -> Scale to 8-bit
+        double normalized = channelSum * invTotal / 255.0;
+        double gammaCorrected = Math.pow(normalized, gamma);
+        return (int) Math.round(gammaCorrected * 255);
+    }
+
+    // Modified CanvasToViewport to support sub-pixel precision
+    private static Vector3 CanvasToViewport(double x, double y) {
+        final double aspectRatio = (double)Cw / Ch;
+        final double viewportWidth = 1.0;
+        final double viewportHeight = 1.0 / aspectRatio;
+        final double distance = 1.0;
+
+        return new Vector3(
+                x * viewportWidth / Cw,
+                y * viewportHeight / Ch,
+                distance
+        );
+    }
+
+    private static void putPixel(int width, int x, int height, int y, BufferedImage img, Color color) {
+        int px = (width / 2) + x;
+        int py = (height / 2) - y;
+        img.setRGB(px, py, color.getRGB());
+    }
+
+    private static Color traceRay(Vector3 origin, Vector3 d, double t_min, double t_max, int recursion_depth) {
+        SphereAndClosestT closestIntersection = ClosestIntersection(origin, d, t_min, t_max);
         double closest_t = closestIntersection.doubleValue;
         Sphere closest_Sphere = closestIntersection.sphereValue;
 
-        if (closest_Sphere == null) {
-            return BACKGROUND_COLOR;
-        }
+        if (closest_Sphere == null) return BACKGROUND_COLOR;
 
         Vector3 P = origin.add(d.mul(closest_t));
-        Vector3 N = P.subtract(closest_Sphere.getCenter());
-        N = N.div(N.length());
+        Vector3 N = P.subtract(closest_Sphere.getCenter()).normalize();
 
-        double lighting = ComputeLighting(P,N,d.mul(-1),closest_Sphere.getSpecular());
-        double ColorR = Math.min(255,closest_Sphere.getColor().getRed() * lighting);
-        double ColorG = Math.min(255,closest_Sphere.getColor().getGreen() * lighting);
-        double ColorB = Math.min(255,closest_Sphere.getColor().getBlue() * lighting);
+        // Compute lighting and local color
+        double lighting = ComputeLighting(P, N, d.mul(-1), closest_Sphere.getSpecular());
+        Color local_color = scaleColor(closest_Sphere.getColor(), lighting);
 
-        Color local_color = new Color((int) ColorR, (int) ColorG, (int) ColorB);
-
-        // If we hit the  recursion limit or the object is not reflective we are done.
-        double r = closest_Sphere.getReflective();
-        if (recursion_depth <= 0 || r <= 0){
+        // Base case: no recursion or non-reflective/transparent object
+        double reflectivity = closest_Sphere.getReflective();
+        double transparency = closest_Sphere.getTransparency();
+        if (recursion_depth <= 0 || (reflectivity <= 0 && transparency <= 0)) {
             return local_color;
         }
 
-        Vector3 R = ReflectRay(d.mul(-1),N);
-        Color reflectedColor = traceRay(P,R,0.001,Double.MAX_VALUE,recursion_depth-1);
-        ColorR = Math.min(255,reflectedColor.getRed() * r + (1 - r) * local_color.getRed());
-        ColorG = Math.min(255,reflectedColor.getGreen() * r + (1 - r) * local_color.getGreen() );
-        ColorB = Math.min(255,reflectedColor.getBlue() * r + (1 - r) * local_color.getBlue());
+        Color final_color = local_color;
 
-        return new Color((int) ColorR, (int) ColorG, (int) ColorB);
+        // Reflection
+        if (reflectivity > 0) {
+            Vector3 R = ReflectRay(d.mul(-1), N);
+            Color reflected_color = traceRay(P.add(N.mul(0.001)), R, 0.001, Double.MAX_VALUE, recursion_depth - 1);
+            final_color = blendColors(final_color, reflected_color, reflectivity);
+        }
 
+        // Refraction (Transparency)
+        if (transparency > 0) {
+            double eta = closest_Sphere.getRefractiveIndex();
+            Vector3 refractedDir = RefractRay(d, N, eta);
+            if (refractedDir != null) {
+                // Offset origin to avoid self-intersection
+                Vector3 refractedOrigin = P.add(N.mul(-0.001)); // Flip normal for exit
+                Color refracted_color = traceRay(refractedOrigin, refractedDir, 0.001, Double.MAX_VALUE, recursion_depth - 1);
+                final_color = blendColors(final_color, refracted_color, transparency);
+            }
+        }
+
+        return final_color;
     }
 
+    private static Color blendColors(Color base, Color added, double coefficient) {
+        int r = (int) (base.getRed() * (1 - coefficient) + added.getRed() * coefficient);
+        int g = (int) (base.getGreen() * (1 - coefficient) + added.getGreen() * coefficient);
+        int b = (int) (base.getBlue() * (1 - coefficient) + added.getBlue() * coefficient);
+        return new Color(clamp(r), clamp(g), clamp(b));
+    }
+
+    private static Color scaleColor(Color color, double factor) {
+        int r = (int) (color.getRed() * factor);
+        int g = (int) (color.getGreen() * factor);
+        int b = (int) (color.getBlue() * factor);
+        return new Color(clamp(r), clamp(g), clamp(b));
+    }
+
+    private static int clamp(int value) {
+        return Math.min(255, Math.max(0, value));
+    }
+
+    private static Vector3 RefractRay(Vector3 incident, Vector3 normal, double eta) {
+        double cosTheta = Math.min(incident.dot(normal.mul(-1)), 1.0);
+        if (cosTheta < 0) {
+            // Ray is exiting the surface (flip normal and eta)
+            normal = normal.mul(-1);
+            eta = 1.0 / eta;
+            cosTheta = -cosTheta;
+        }
+
+        double sinTheta = Math.sqrt(1.0 - cosTheta * cosTheta);
+        if (eta * sinTheta > 1.0) {
+            // Total internal reflection (no refraction)
+            return null;
+        }
+
+        Vector3 refractedPerp = incident.add(normal.mul(cosTheta)).mul(eta);
+        Vector3 refractedParallel = normal.mul(-Math.sqrt(1.0 - refractedPerp.dot(refractedPerp)));
+        return refractedPerp.add(refractedParallel).normalize();
+    }
     private static SphereAndClosestT ClosestIntersection(Vector3 origin, Vector3 d, double t_min, double t_max){
         Double closest_t = Double.MAX_VALUE;
         Sphere closest_Sphere = null;
@@ -146,13 +265,6 @@ public class Main {
         return AllT;
     }
 
-    private static Vector3 CanvasToViewport(int x, int y) {
-        double Vw = 1.0; // Viewport width in 3D space
-        double Vh = 1.0; // Viewport height in 3D space
-        double d = 1.0;  // Distance from the canvas to the viewport
-
-        return new Vector3((x * Vw) / Cw, (y * Vh) / Ch, d);
-    }
 
     private static Double ComputeLighting(Vector3 P, Vector3 N,Vector3 V, double s) {
         Double i = 0.0;
