@@ -1,9 +1,9 @@
 import java.util.Objects;
 
 public class Vector3 {
-    private final double x;
-    private final double y;
-    private final double z;
+    private double x;
+    private double y;
+    private double z;
 
     // Static constants for common vectors
     public static final Vector3 ZERO = new Vector3(0, 0, 0);
@@ -12,10 +12,16 @@ public class Vector3 {
     public static final Vector3 RIGHT = new Vector3(1, 0, 0);
     public static final Vector3 FORWARD = new Vector3(0, 0, 1);
 
+
+
     public Vector3(double x, double y, double z) {
         this.x = x;
         this.y = y;
         this.z = z;
+    }
+
+    public Vector3(Point3d x,Point3d y){
+        new Vector3(x.getX()-y.getX(),x.getY()-y.getY(),x.getZ()-y.getZ());
     }
 
     // ===== Core Vector Operations =====
@@ -105,3 +111,4 @@ public class Vector3 {
         return z;
     }
 }
+
