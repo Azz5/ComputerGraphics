@@ -1,8 +1,8 @@
 <component name="libraryTable">
   <library name="joml" type="repository">
-    <properties maven-id="org.joml:joml:1.10.8" />
+    <properties maven-id="org.joml:joml:1.10.5" />
     <CLASSES>
-      <root url="jar://$MAVEN_REPOSITORY$/org/joml/joml/1.10.8/joml-1.10.8.jar!/" />
+      <root url="jar://$MAVEN_REPOSITORY$/org/joml/joml/1.10.5/joml-1.10.5.jar!/" />
     </CLASSES>
     <JAVADOC />
     <SOURCES />

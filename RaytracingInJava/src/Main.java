@@ -1,3 +1,7 @@
+import org.joml.Matrix3d;
+import org.joml.Matrix4d;
+import org.joml.Vector4d;
+
 import javax.imageio.ImageIO;
 import java.awt.*;
 import java.awt.image.BufferedImage;
@@ -17,16 +21,16 @@ public class Main {
 
     final static Sphere[] spheres = new Sphere[] {
 
-          //  new Sphere(new Vector3(0, -1, 3), 1.,0.,Color.RED,500.,1,0.5),
-           // new Sphere(new Vector3(2, 0, 4), 1.,0.3,Color.BLUE,500.,0,0.0),
-            //new Sphere(new Vector3(-2, 0, 4), 1.,0.4,Color.GREEN,100.,0,0.0),
+            new Sphere(new Vector3(0, -1, 3), 1.,0.,Color.RED,500.,1,0.5),
+            new Sphere(new Vector3(2, 0, 4), 1.,0.3,Color.BLUE,500.,0,0.0),
+            new Sphere(new Vector3(-2, 0, 4), 1.,0.4,Color.GREEN,100.,0,0.0),
             //new Sphere(new Vector3(0, 0, 7), 1.5,0.2,Color.WHITE,10.,0,0.0),
             new Sphere(new Vector3(0,-5001,0),5000.,0.,Color.YELLOW,1000.,0,0.0),
 
 
     };
 
-    private static Triangle[] triangles;
+    private static Triangle[] triangles = new Triangle[0];
 
 
     final static Light[] lights = new Light[] {
@@ -36,20 +40,37 @@ public class Main {
     };
 
     public static void main(String[] args) {
-        Matrix3 rotation= new Matrix3();
+        /*
+        // Rabbit reading
         try {
             triangles = OBJReader.readOBJFile("Data/bunny.obj").toArray(new Triangle[0]);
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
-        Camera camera = new Camera(Matrix3.createRotationZ(Math.PI/6).transform(new Vector3(0,0.5,-1)));
+
+         */
+        Matrix4d SphereTranslation = new Matrix4d().translate(0,0,1).scale(2);
+
+        spheres[0].transform(SphereTranslation);
+
+        long startTime = System.nanoTime(); // Capture start time
+        Matrix4d Rotation = new Matrix4d().translate(
+                0,0,-5
+        );
+        Camera camera = new Camera(new Vector3(Rotation.transform(new Vector3(0,0,0))));
         BufferedImage img = new BufferedImage(Cw+ 1, Ch+ 1, BufferedImage.TYPE_INT_RGB);
-        IntStream.range(0, Cw * Ch).parallel().forEach(i -> {
-            int x = (i / Ch) - (Cw / 2);
-            int y = (i % Ch) - (Ch / 2);
-            Color color = SuperSampling(camera,x,y,4);
-            putPixel(Cw, x, Ch, y, img, color);
-        });
+        for (int x = -Cw/2; x < Cw/2; x++) {
+            for (int y = -Ch/2; y < Ch/2; y++) {
+                Color color = SuperSampling(camera, x, y, 1);
+                putPixel(Cw, x, Ch, y, img, color);
+            }
+        }
+
+        long endTime = System.nanoTime(); // Capture end time
+        long duration = (endTime - startTime); // Calculate duration in nanoseconds
+        double durationInSeconds = duration / 1_000_000_000.0; // Convert to seconds
+
+        System.out.println("Time taken: " + durationInSeconds + " seconds");
         // Save image
         try {
             ImageIO.write(img, "PNG", new File("output2.png"));
@@ -76,50 +97,39 @@ public class Main {
         int blue = 0;
         int totalSamples = samplingFactor * samplingFactor;
 
-        // Stratified sampling with jitter
-        ColorSum sum = IntStream.range(0, totalSamples)
-                .parallel()
-                .mapToObj(i -> {
-                    int dx = i / samplingFactor;
-                    int dy = i % samplingFactor;
+        for (int dx = 0; dx < samplingFactor; dx++) {
+            for (int dy = 0; dy < samplingFactor; dy++) {
+                // Jittered sampling with ThreadLocalRandom
+                double jitterX = ThreadLocalRandom.current().nextDouble(0.5);
+                double jitterY = ThreadLocalRandom.current().nextDouble(0.5);
+                double sampleX = x + (dx + jitterX) / samplingFactor;
+                double sampleY = y + (dy + jitterY) / samplingFactor;
 
-                    // Jittered sampling with ThreadLocalRandom
-                    double jitterX = ThreadLocalRandom.current().nextDouble(0.5);
-                    double jitterY = ThreadLocalRandom.current().nextDouble(0.5);
-                    double sampleX = x + (dx + jitterX) / samplingFactor;
-                    double sampleY = y + (dy + jitterY) / samplingFactor;
+                // Compute ray direction and trace
+                Vector4d data  = camera.getRotation().transform(
+                        CanvasToViewport(sampleX, sampleY)
+                );
+                Vector3 direction = new Vector3(data);
+                Color color = traceRay(camera.getPosition(), direction, 1.0, Double.MAX_VALUE, 3);
 
-                    // Compute ray direction and trace
-                    Vector3 direction = camera.getRotation().transform(
-                            CanvasToViewport(sampleX, sampleY)
-                    );
-                    Color color = traceRay(camera.getPosition(), direction, 1.0, Double.MAX_VALUE, 3);
-
-                    return new ColorSum(color.getRed(), color.getGreen(), color.getBlue());
-                })
-                .reduce(new ColorSum(0, 0, 0), ColorSum::add);
+                // Accumulate the color values
+                red += color.getRed();
+                green += color.getGreen();
+                blue += color.getBlue();
+            }
+        }
         // Gamma correction parameters
         final double gamma = 1 ; /* 1.0 / 2.2; // Standard sRGB gamma Not needed */
         final double invTotal = 1.0 / totalSamples;
 
         // Process each channel with proper gamma correction
-        int avgRed = processChannel(sum.red, invTotal, gamma);
-        int avgGreen = processChannel(sum.green, invTotal, gamma);
-        int avgBlue = processChannel(sum.blue, invTotal, gamma);
+        int avgRed = processChannel(red, invTotal, gamma);
+        int avgGreen = processChannel(green, invTotal, gamma);
+        int avgBlue = processChannel(blue, invTotal, gamma);
 
         return new Color(clamp(avgRed), clamp(avgGreen), clamp(avgBlue));
     }
 
-    private record ColorSum(int red, int green, int blue) {
-
-        public ColorSum add(ColorSum other) {
-                return new ColorSum(
-                        this.red + other.red,
-                        this.green + other.green,
-                        this.blue + other.blue
-                );
-            }
-        }
     private static int processChannel(int channelSum, double invTotal, double gamma) {
         // Normalize -> Gamma correct -> Scale to 8-bit
         double normalized = channelSum * invTotal / 255.0;
@@ -194,7 +204,7 @@ public class Main {
             }
 
 
-            return local_color;
+            return final_color;
         }
 
         Vector3 P = cameraPosition.add(d.mul(closest_t));

@@ -35,7 +35,7 @@ public class OBJReader {
 
                     // Assuming default material properties for the triangle
                     Triangle triangle = new Triangle(Color.RED, 0.5, 0.5, 1.0, 0.0, pointA, pointB, pointC);
-                    triangle.scale(4,4,4);
+                    triangle.scale(8,8,8);
                     triangles.add(triangle);
                 }
             }

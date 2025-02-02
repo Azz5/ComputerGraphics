@@ -1,3 +1,5 @@
+import org.joml.Matrix4d;
+
 import java.awt.*;
 
 public class Sphere extends Surface
@@ -16,4 +18,17 @@ public class Sphere extends Surface
     public  Vector3 getCenter() {
         return center;
     }
+
+    public void transform(Matrix4d transformationMatrix) {
+        double scale = transformationMatrix.get(0,0);
+
+        transformationMatrix.m00(1);
+        transformationMatrix.m11(1);
+        transformationMatrix.m22(1);
+
+        radius *= scale;
+        center = new Vector3(transformationMatrix.transform(center));
+
+    }
+
 }

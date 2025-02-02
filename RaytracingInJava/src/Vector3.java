@@ -1,6 +1,7 @@
+import org.joml.Vector4d;
 import java.util.Objects;
 
-public class Vector3 {
+public class Vector3 extends Vector4d {
     private double x;
     private double y;
     private double z;
@@ -15,6 +16,7 @@ public class Vector3 {
 
 
     public Vector3(double x, double y, double z) {
+        super(x,y,z,1);
         this.x = x;
         this.y = y;
         this.z = z;
@@ -23,6 +25,14 @@ public class Vector3 {
     public Vector3(Point3d x,Point3d y){
         new Vector3(x.getX()-y.getX(),x.getY()-y.getY(),x.getZ()-y.getZ());
     }
+
+    public Vector3(Vector4d data) {
+        super(data);
+        this.x = data.x;
+        this.y = data.y;
+        this.z = data.z;
+    }
+
 
     // ===== Core Vector Operations =====
     public Vector3 subtract(Vector3 vector) {
@@ -110,5 +120,7 @@ public class Vector3 {
     public double getZ() {
         return z;
     }
+
+
 }
 
