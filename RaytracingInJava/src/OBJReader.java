@@ -1,3 +1,5 @@
+import org.joml.Matrix4d;
+
 import java.awt.Color;
 import java.io.BufferedReader;
 import java.io.FileReader;
@@ -36,6 +38,7 @@ public class OBJReader {
                     // Assuming default material properties for the triangle
                     Triangle triangle = new Triangle(Color.RED, 0.5, 0.5, 1.0, 0.0, pointA, pointB, pointC);
                     triangle.scale(8,8,8);
+                    triangle.transform(new Matrix4d().translate(-0.7,-1,3));
                     triangles.add(triangle);
                 }
             }

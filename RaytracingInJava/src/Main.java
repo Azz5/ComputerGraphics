@@ -1,4 +1,3 @@
-import org.joml.Matrix3d;
 import org.joml.Matrix4d;
 import org.joml.Vector4d;
 
@@ -8,39 +7,43 @@ import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.stream.IntStream;
 
 public class Main {
 
-    record ObjectAndT(Sphere sphereValue, Triangle triangleValue, Double doubleValue) {}
+    record ObjectAndT(Sphere sphereValue, Triangle triangleValue, Cylinder cylinderValue ,Double doubleValue) {}
 
-    final static int Cw = 400; // Canvas width
-    final static int Ch = 400; // Canvas height
+    final static int Cw = 800; // Canvas width
+    final static int Ch = 800; // Canvas height
     final static Color BACKGROUND_COLOR = Color.black;
 
     final static Sphere[] spheres = new Sphere[] {
 
-            new Sphere(new Vector3(0, -1, 3), 1.,0.,Color.RED,500.,1,0.5),
-            new Sphere(new Vector3(2, 0, 4), 1.,0.3,Color.BLUE,500.,0,0.0),
-            new Sphere(new Vector3(-2, 0, 4), 1.,0.4,Color.GREEN,100.,0,0.0),
+            new Sphere(new Vector3(2, 0, 5), 1.,0.5,Color.RED,500.,1,0.),
             //new Sphere(new Vector3(0, 0, 7), 1.5,0.2,Color.WHITE,10.,0,0.0),
-            new Sphere(new Vector3(0,-5001,0),5000.,0.,Color.YELLOW,1000.,0,0.0),
 
 
     };
 
-    private static Triangle[] triangles = new Triangle[0];
+    private static Triangle[] triangles = new Triangle[]{
+
+    };
+
+    private static Cylinder[] cylinders = new Cylinder[] {
+            new Cylinder(new Vector3(0.,0.,3.),1.,1.,Color.YELLOW,10,0,0,0.0)
+    };
 
 
     final static Light[] lights = new Light[] {
-            new Light(0.2)/* This is Ambient */,
+            new Light(0.1)/* This is Ambient */,
             new Light(0.6,new Vector3(2,1,0)) /* This is point */,
             new Light(new Vector3(1,4,4), 0.2) /* This is Directional */
     };
 
     public static void main(String[] args) {
-        /*
+
         // Rabbit reading
         try {
             triangles = OBJReader.readOBJFile("Data/bunny.obj").toArray(new Triangle[0]);
@@ -48,23 +51,27 @@ public class Main {
             throw new RuntimeException(e);
         }
 
-         */
-        Matrix4d SphereTranslation = new Matrix4d().translate(0,0,1).scale(2);
 
-        spheres[0].transform(SphereTranslation);
+
+
+
 
         long startTime = System.nanoTime(); // Capture start time
         Matrix4d Rotation = new Matrix4d().translate(
                 0,0,-5
         );
-        Camera camera = new Camera(new Vector3(Rotation.transform(new Vector3(0,0,0))));
+        Camera camera = new Camera(new Vector3(0,0,-2));
         BufferedImage img = new BufferedImage(Cw+ 1, Ch+ 1, BufferedImage.TYPE_INT_RGB);
-        for (int x = -Cw/2; x < Cw/2; x++) {
-            for (int y = -Ch/2; y < Ch/2; y++) {
-                Color color = SuperSampling(camera, x, y, 1);
-                putPixel(Cw, x, Ch, y, img, color);
-            }
-        }
+        IntStream.range(-Cw/2, Cw/2)
+                .parallel()  // process x values in parallel
+                .forEach(x -> {
+                    IntStream.range(-Ch/2, Ch/2)
+                            .forEach(y -> {
+                                Color color = SuperSampling(camera, x, y, 4);
+                                putPixel(x, y, img, color);
+                            });
+                });
+
 
         long endTime = System.nanoTime(); // Capture end time
         long duration = (endTime - startTime); // Calculate duration in nanoseconds
@@ -73,7 +80,7 @@ public class Main {
         System.out.println("Time taken: " + durationInSeconds + " seconds");
         // Save image
         try {
-            ImageIO.write(img, "PNG", new File("output2.png"));
+            ImageIO.write(img, "PNG", new File("output3.png"));
             System.out.println("Image saved.");
         } catch (IOException _) {}
 
@@ -119,22 +126,20 @@ public class Main {
             }
         }
         // Gamma correction parameters
-        final double gamma = 1 ; /* 1.0 / 2.2; // Standard sRGB gamma Not needed */
         final double invTotal = 1.0 / totalSamples;
 
         // Process each channel with proper gamma correction
-        int avgRed = processChannel(red, invTotal, gamma);
-        int avgGreen = processChannel(green, invTotal, gamma);
-        int avgBlue = processChannel(blue, invTotal, gamma);
+        int avgRed = processChannel(red, invTotal);
+        int avgGreen = processChannel(green, invTotal);
+        int avgBlue = processChannel(blue, invTotal);
 
         return new Color(clamp(avgRed), clamp(avgGreen), clamp(avgBlue));
     }
 
-    private static int processChannel(int channelSum, double invTotal, double gamma) {
+    private static int processChannel(int channelSum, double invTotal) {
         // Normalize -> Gamma correct -> Scale to 8-bit
         double normalized = channelSum * invTotal / 255.0;
-        double gammaCorrected = Math.pow(normalized, gamma);
-        return (int) Math.round(gammaCorrected * 255);
+        return (int) Math.round(normalized * 255);
     }
 
     // Modified CanvasToViewport to support sub-pixel precision
@@ -151,9 +156,9 @@ public class Main {
         );
     }
 
-    private static void putPixel(int width, int x, int height, int y, BufferedImage img, Color color) {
-        int px = (width / 2) + x;
-        int py = (height / 2) - y;
+    private static void putPixel(int x, int y, BufferedImage img, Color color) {
+        int px = (Main.Cw / 2) + x;
+        int py = (Main.Ch / 2) - y;
         img.setRGB(px, py, color.getRGB());
     }
 
@@ -161,10 +166,49 @@ public class Main {
         ObjectAndT closestIntersection = ClosestIntersection(cameraPosition, d, t_min, t_max);
         double closest_t = closestIntersection.doubleValue;
         Sphere closest_sphere = closestIntersection.sphereValue;
+        Cylinder closest_cylinder = closestIntersection.cylinderValue;
         Triangle closest_triangle= closestIntersection.triangleValue;
 
-        if (closest_sphere == null && closest_triangle == null)
+        if (closest_sphere == null && closest_triangle == null && closest_cylinder == null)
             return BACKGROUND_COLOR;
+        if (closest_cylinder != null) {
+            Vector3 P = cameraPosition.add(d.mul(closest_t));
+            Vector3 N = P.subtract(closest_cylinder.getCenter()).normalize();
+
+            // Compute lighting and local color
+            double lighting = ComputeLighting(P, N, d.mul(-1), closest_cylinder.getSpecular());
+            Color local_color = scaleColor(closest_cylinder.getColor(), lighting);
+
+
+            // Base case: no recursion or non-reflective/transparent object
+            double reflectivity = closest_cylinder.getReflective();
+            double transparency = closest_cylinder.getTransparency();
+            if (recursion_depth <= 0 || (reflectivity <= 0 && transparency <= 0)) {
+                return local_color;
+            }
+
+            Color final_color = local_color;
+
+            // Reflection
+            if (reflectivity > 0) {
+                Vector3 R = ReflectRay(d.mul(-1), N);
+                Color reflected_color = traceRay(P.add(N.mul(0.001)), R, 0.001, Double.MAX_VALUE, recursion_depth - 1);
+                final_color = blendColors(final_color, reflected_color, reflectivity);
+            }
+
+            // Refraction (Transparency)
+            if (transparency > 0) {
+                double eta = closest_cylinder.getRefractiveIndex();
+                Vector3 refractedDir = RefractRay(d, N, eta);
+                if (refractedDir != null) {
+                    // Offset origin to avoid self-intersection
+                    Vector3 refractedOrigin = P.add(N.mul(-0.001)); // Flip normal for exit
+                    Color refracted_color = traceRay(refractedOrigin, refractedDir, 0.001, Double.MAX_VALUE, recursion_depth - 1);
+                    final_color = blendColors(final_color, refracted_color, transparency);
+                }
+            }
+            return final_color;
+        }
 
         if (closest_triangle != null){
             Vector3 P = cameraPosition.add(d.mul(closest_t));
@@ -207,82 +251,215 @@ public class Main {
             return final_color;
         }
 
-        Vector3 P = cameraPosition.add(d.mul(closest_t));
-        Vector3 N = P.subtract(closest_sphere.getCenter()).normalize();
 
-        // Compute lighting and local color
-        double lighting = ComputeLighting(P, N, d.mul(-1), closest_sphere.getSpecular());
-        Color local_color = scaleColor(closest_sphere.getColor(), lighting);
+            Vector3 P = cameraPosition.add(d.mul(closest_t));
+            Vector3 N = P.subtract(closest_sphere.getCenter()).normalize();
 
-        // Base case: no recursion or non-reflective/transparent object
-        double reflectivity = closest_sphere.getReflective();
-        double transparency = closest_sphere.getTransparency();
-        if (recursion_depth <= 0 || (reflectivity <= 0 && transparency <= 0)) {
-            return local_color;
-        }
+            // Compute lighting and local color
+            double lighting = ComputeLighting(P, N, d.mul(-1), closest_sphere.getSpecular());
+            Color local_color = scaleColor(closest_sphere.getColor(), lighting);
 
-        Color final_color = local_color;
-
-        // Reflection
-        if (reflectivity > 0) {
-            Vector3 R = ReflectRay(d.mul(-1), N);
-            Color reflected_color = traceRay(P.add(N.mul(0.001)), R, 0.001, Double.MAX_VALUE, recursion_depth - 1);
-            final_color = blendColors(final_color, reflected_color, reflectivity);
-        }
-
-        // Refraction (Transparency)
-        if (transparency > 0) {
-            double eta = closest_sphere.getRefractiveIndex();
-            Vector3 refractedDir = RefractRay(d, N, eta);
-            if (refractedDir != null) {
-                // Offset origin to avoid self-intersection
-                Vector3 refractedOrigin = P.add(N.mul(-0.001)); // Flip normal for exit
-                Color refracted_color = traceRay(refractedOrigin, refractedDir, 0.001, Double.MAX_VALUE, recursion_depth - 1);
-                final_color = blendColors(final_color, refracted_color, transparency);
+            // Base case: no recursion or non-reflective/transparent object
+            double reflectivity = closest_sphere.getReflective();
+            double transparency = closest_sphere.getTransparency();
+            if (recursion_depth <= 0 || (reflectivity <= 0 && transparency <= 0)) {
+                return local_color;
             }
-        }
-        return final_color;
 
+            Color final_color = local_color;
+
+            // Reflection
+            if (reflectivity > 0) {
+                Vector3 R = ReflectRay(d.mul(-1), N);
+                Color reflected_color = traceRay(P.add(N.mul(0.001)), R, 0.001, Double.MAX_VALUE, recursion_depth - 1);
+                final_color = blendColors(final_color, reflected_color, reflectivity);
+            }
+
+            // Refraction (Transparency)
+            if (transparency > 0) {
+                double eta = closest_sphere.getRefractiveIndex();
+                Vector3 refractedDir = RefractRay(d, N, eta);
+                if (refractedDir != null) {
+                    // Offset origin to avoid self-intersection
+                    Vector3 refractedOrigin = P.add(N.mul(-0.001)); // Flip normal for exit
+                    Color refracted_color = traceRay(refractedOrigin, refractedDir, 0.001, Double.MAX_VALUE, recursion_depth - 1);
+                    final_color = blendColors(final_color, refracted_color, transparency);
+                }
+            }
+            return final_color;
     }
-
-    private static ObjectAndT ClosestIntersection(Vector3 cameraPosition, Vector3 d, double t_min, double t_max){
-        // TO DO take closest T and fix triangles not very clean
-        Double closest_t = Double.MAX_VALUE;
+    private static ObjectAndT ClosestIntersection(Vector3 cameraPosition, Vector3 d, double t_min, double t_max) {
+        double closest_t = Double.MAX_VALUE;
         Sphere closest_Sphere = null;
         Triangle closest_triangle = null;
+        Cylinder closest_Cylinder = null;
+
+        // Check intersections with spheres
         for (Sphere sphere : spheres) {
-            ArrayList<Double> AllT = IntersectRaySphere(cameraPosition, d, sphere);
-            double t1 = AllT.get(0);
-            double t2 = AllT.get(1);
+            ArrayList<Double> allT = IntersectRaySphere(cameraPosition, d, sphere);
+            double t1 = allT.get(0);
+            double t2 = allT.get(1);
 
             if (t_min < t1 && t1 < t_max && t1 < closest_t) {
                 closest_t = t1;
                 closest_Sphere = sphere;
+                closest_triangle = null;
+                closest_Cylinder = null;
             }
             if (t_min < t2 && t2 < t_max && t2 < closest_t) {
                 closest_t = t2;
                 closest_Sphere = sphere;
+                closest_triangle = null;
+                closest_Cylinder = null;
             }
         }
-        for (Triangle triangle : triangles){
-            Double t1 = IntersectTriangle(cameraPosition,d,triangle);
+
+        // Check intersections with triangles
+        for (Triangle triangle : triangles) {
+            Double t = IntersectTriangle(cameraPosition, d, triangle);
+            if (t != null && t_min < t && t < t_max && t < closest_t) {
+                closest_t = t;
+                closest_triangle = triangle;
+                closest_Sphere = null;
+                closest_Cylinder = null;
+            }
+        }
+
+        // Check intersections with cylinders
+        for (Cylinder cylinder : cylinders) {
+            ArrayList<Double> allT = IntersectRayCylinder(cameraPosition, d, cylinder);
+            double t1 = allT.get(0);
+            double t2 = allT.get(1);
             if (t_min < t1 && t1 < t_max && t1 < closest_t) {
                 closest_t = t1;
-                closest_triangle = triangle;
+                closest_Cylinder = cylinder;
+                closest_Sphere = null;
+                closest_triangle = null;
+            }
+            if (t_min < t2 && t2 < t_max && t2 < closest_t) {
+                closest_t = t2;
+                closest_Cylinder = cylinder;
+                closest_Sphere = null;
+                closest_triangle = null;
             }
         }
-        return new ObjectAndT(closest_Sphere,closest_triangle,closest_t);
 
+        return new ObjectAndT(closest_Sphere, closest_triangle, closest_Cylinder, closest_t);
+    }
+
+    public static ArrayList<Double> IntersectRayCylinder(Vector3 rayOrigin, Vector3 rayDir, Cylinder cylinder) {
+        ArrayList<Double> tCandidates = new ArrayList<>();
+
+        double radius = cylinder.getRadius();
+        double height = cylinder.getHeight();
+        Vector3 center = cylinder.getCenter();
+
+        // Extract coordinates for clarity.
+        double cx = center.getX();
+        double cy = center.getY();
+        double cz = center.getZ();
+
+        double ox = rayOrigin.getX();
+        double oy = rayOrigin.getY();
+        double oz = rayOrigin.getZ();
+
+        double dx = rayDir.getX();
+        double dy = rayDir.getY();
+        double dz = rayDir.getZ();
+
+        // Define the y-boundaries of the finite cylinder.
+        double yTop = cy + height / 2.0;
+        double yBottom = cy - height / 2.0;
+
+        // ===========================================================
+        // 1. Intersect with the infinite cylinder’s lateral surface.
+        //
+        // For a cylinder aligned along the y-axis, the equation is:
+        //   (x - cx)^2 + (z - cz)^2 = radius^2
+        // where the valid y coordinates are between yBottom and yTop.
+        // ===========================================================
+        double A = dx * dx + dz * dz;
+        double B = 2 * ((ox - cx) * dx + (oz - cz) * dz);
+        double Ccoef = (ox - cx) * (ox - cx) + (oz - cz) * (oz - cz) - radius * radius;
+
+        // Only solve the quadratic if A is not nearly zero (i.e. ray not parallel to the cylinder’s side).
+        if (Math.abs(A) > 1e-6) {
+            double discriminant = B * B - 4 * A * Ccoef;
+            if (discriminant >= 0) {
+                double sqrtDisc = Math.sqrt(discriminant);
+                double t1 = (-B - sqrtDisc) / (2 * A);
+                double t2 = (-B + sqrtDisc) / (2 * A);
+
+                // For each solution, check that the y coordinate lies within the cylinder’s height.
+                double y1 = oy + t1 * dy;
+                if (y1 >= yBottom && y1 <= yTop) {
+                    tCandidates.add(t1);
+                }
+
+                double y2 = oy + t2 * dy;
+                if (y2 >= yBottom && y2 <= yTop) {
+                    tCandidates.add(t2);
+                }
+            }
+        }
+
+        // ===========================================================
+        // 2. Intersect with the top and bottom caps.
+        // Each cap is a horizontal plane (y = yTop and y = yBottom).
+        // For each cap, if the ray is not parallel (dy not 0), compute t and check
+        // whether the (x,z) coordinates of the intersection lie within the circle.
+        // ===========================================================
+        if (Math.abs(dy) > 1e-6) {
+            // Top cap at y = yTop.
+            double tTop = (yTop - oy) / dy;
+            double xTop = ox + tTop * dx;
+            double zTop = oz + tTop * dz;
+            if ((xTop - cx) * (xTop - cx) + (zTop - cz) * (zTop - cz) <= radius * radius) {
+                tCandidates.add(tTop);
+            }
+
+            // Bottom cap at y = yBottom.
+            double tBottom = (yBottom - oy) / dy;
+            double xBottom = ox + tBottom * dx;
+            double zBottom = oz + tBottom * dz;
+            if ((xBottom - cx) * (xBottom - cx) + (zBottom - cz) * (zBottom - cz) <= radius * radius) {
+                tCandidates.add(tBottom);
+            }
+        }
+
+        // ===========================================================
+        // 3. Sort the candidate t-values in ascending order.
+        // ===========================================================
+        Collections.sort(tCandidates);
+
+        // ===========================================================
+        // 4. Prepare the result.
+        // We mimic the sphere intersection method by returning exactly two values.
+        // If fewer than two intersections were found, fill in with Double.POSITIVE_INFINITY.
+        // ===========================================================
+        ArrayList<Double> result = new ArrayList<>();
+        if (tCandidates.size() >= 2) {
+            result.add(tCandidates.get(0));
+            result.add(tCandidates.get(1));
+        } else if (tCandidates.size() == 1) {
+            result.add(tCandidates.get(0));
+            result.add(Double.POSITIVE_INFINITY);
+        } else {
+            result.add(Double.POSITIVE_INFINITY);
+            result.add(Double.POSITIVE_INFINITY);
+        }
+
+        return result;
     }
 
     private static Double IntersectTriangle(Vector3 cameraPosition, Vector3 d, Triangle triangle){
-        Double n_dot_d = triangle.getTriEdgeNormal().dot(d);
+        double n_dot_d = triangle.getTriEdgeNormal().dot(d);
         if (n_dot_d == 0){
             return Double.MAX_VALUE;
         }
 
-        Double n_dot_ps = triangle.getTriEdgeNormal().dot(triangle.getPointA().subtract(cameraPosition));
-        Double t = n_dot_ps / n_dot_d;
+        double n_dot_ps = triangle.getTriEdgeNormal().dot(triangle.getPointA().subtract(cameraPosition));
+        double t = n_dot_ps / n_dot_d;
 
         Point3d plane_point = new Point3d(cameraPosition.add(d.mul(t)));
 
@@ -298,7 +475,7 @@ public class Main {
         Boolean BtestVec_matchesNormal = BtestVec.dot(triangle.getTriEdgeNormal())  > 0.;
         Boolean CtestVec_matchesNormal = CtestVec.dot(triangle.getTriEdgeNormal())  > 0.;
 
-        Boolean hitTriangle = AtestVec_matchesNormal && BtestVec_matchesNormal && CtestVec_matchesNormal;
+        boolean hitTriangle = AtestVec_matchesNormal && BtestVec_matchesNormal && CtestVec_matchesNormal;
         if (hitTriangle) {
             return t;
         }
@@ -370,9 +547,8 @@ public class Main {
 
 
     private static Double ComputeLighting(Vector3 P, Vector3 N,Vector3 V, double s) {
-        Double i = 0.0;
-        Double t_max;
-        Double shadow_t;
+        double i = 0.0;
+        double t_max;
         Sphere shadow_sphere;
         Vector3 L;
         for (Light light : lights){
@@ -418,6 +594,4 @@ public class Main {
     private static Vector3 ReflectRay(Vector3 L, Vector3 N){
         return N.mul(2).mul(N.dot(L)).subtract(L);
     }
-
-
 }

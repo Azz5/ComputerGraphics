@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="Encoding">
+    <file url="file://D:/DOWNLOADS/TornadoVM-master/TornadoVM-master/tornado-annotation/src/main/java" charset="UTF-8" />
+    <file url="file://D:/DOWNLOADS/TornadoVM-master/TornadoVM-master/tornado-annotation/src/main/resources" charset="UTF-8" />
+    <file url="file://D:/DOWNLOADS/TornadoVM-master/TornadoVM-master/tornado-api/src/main/java" charset="UTF-8" />
+    <file url="file://D:/DOWNLOADS/TornadoVM-master/TornadoVM-master/tornado-api/src/main/resources" charset="UTF-8" />
+    <file url="file://D:/DOWNLOADS/TornadoVM-master/TornadoVM-master/tornado-assembly/src/main/java" charset="UTF-8" />
+    <file url="file://D:/DOWNLOADS/TornadoVM-master/TornadoVM-master/tornado-assembly/src/main/resources" charset="UTF-8" />
+    <file url="file://D:/DOWNLOADS/TornadoVM-master/TornadoVM-master/tornado-benchmarks/src/main/java" charset="UTF-8" />
+    <file url="file://D:/DOWNLOADS/TornadoVM-master/TornadoVM-master/tornado-benchmarks/src/main/resources" charset="UTF-8" />
+    <file url="file://D:/DOWNLOADS/TornadoVM-master/TornadoVM-master/tornado-matrices/src/main/java" charset="UTF-8" />
+    <file url="file://D:/DOWNLOADS/TornadoVM-master/TornadoVM-master/tornado-matrices/src/main/resources" charset="UTF-8" />
+    <file url="file://D:/DOWNLOADS/TornadoVM-master/TornadoVM-master/tornado-runtime/src/main/java" charset="UTF-8" />
+    <file url="file://D:/DOWNLOADS/TornadoVM-master/TornadoVM-master/tornado-runtime/src/main/resources" charset="UTF-8" />
+    <file url="file://D:/DOWNLOADS/TornadoVM-master/TornadoVM-master/tornado-unittests/src/main/java" charset="UTF-8" />
+    <file url="file://D:/DOWNLOADS/TornadoVM-master/TornadoVM-master/tornado-unittests/src/main/resources" charset="UTF-8" />
+  </component>
+</project>

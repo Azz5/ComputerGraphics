@@ -1,6 +1,8 @@
 import java.awt.*;
+import org.joml.Matrix4d;
+import org.joml.Vector3d;
 
-public class Triangle extends Surface{
+public class Triangle extends Surface {
     private Point3d pointA;
     private Point3d pointB;
     private Point3d pointC;
@@ -9,8 +11,9 @@ public class Triangle extends Surface{
     private Vector3 CtoA_edge;
     private Vector3 triEdgeNormal;
 
-
-    public Triangle(Color color, double specular, double reflective, double refraction_index, double transparency, Point3d pointA, Point3d pointB, Point3d pointC) {
+    public Triangle(Color color, double specular, double reflective,
+                    double refraction_index, double transparency,
+                    Point3d pointA, Point3d pointB, Point3d pointC) {
         super(color, specular, reflective, refraction_index, transparency);
         this.pointA = pointA;
         this.pointB = pointB;
@@ -56,8 +59,6 @@ public class Triangle extends Surface{
         pointA = scalePoint(pointA, sx, sy, sz);
         pointB = scalePoint(pointB, sx, sy, sz);
         pointC = scalePoint(pointC, sx, sy, sz);
-
-        // Update edges and normal after scaling
         updateEdgesAndNormal();
     }
 
@@ -69,7 +70,7 @@ public class Triangle extends Surface{
         return new Point3d(x, y, z);
     }
 
-    // Update edges and normal after scaling
+    // Update the edge vectors and normal based on the current vertex positions
     private void updateEdgesAndNormal() {
         this.AtoB_edge = pointB.subtract(pointA);
         this.BtoC_edge = pointC.subtract(pointB);
@@ -78,6 +79,38 @@ public class Triangle extends Surface{
         Vector3 triEdge2 = pointC.subtract(pointA);
         this.triEdgeNormal = triEdge1.cross(triEdge2);
     }
+
+    /**
+     * Transforms the triangle using a JOML 4x4 matrix.
+     *
+     * @param matrix The JOML Matrix4d representing the transformation.
+     */
+    public void transform(Matrix4d matrix) {
+        pointA = transformPoint(pointA, matrix);
+        pointB = transformPoint(pointB, matrix);
+        pointC = transformPoint(pointC, matrix);
+        updateEdgesAndNormal();
+    }
+
+    /**
+     * Helper method to transform a single Point3d using a JOML Matrix4d.
+     * The point is converted to a Vector3d, transformed using the matrix, and
+     * then converted back to a Point3d.
+     *
+     * @param point  The original point.
+     * @param matrix The transformation matrix.
+     * @return A new Point3d representing the transformed point.
+     */
+    private Point3d transformPoint(Point3d point, Matrix4d matrix) {
+        // Convert the Point3d to a JOML Vector3d
+        Vector3d vec = new Vector3d(point.getX(), point.getY(), point.getZ());
+
+        // Apply the transformation.
+        // transformPosition handles homogeneous coordinates, so it will apply the
+        // matrix multiplication considering an implicit 1 for the w-component.
+        matrix.transformPosition(vec);
+
+        // Return the transformed point
+        return new Point3d(vec.x, vec.y, vec.z);
+    }
 }
-
-
