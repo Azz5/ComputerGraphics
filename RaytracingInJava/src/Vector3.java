@@ -55,10 +55,15 @@ public class Vector3 extends Vector4d {
         );
     }
 
+    @Override
     public double length() {
         return Math.sqrt(this.dot(this));
     }
 
+    Vector3 subtract(Point3d point) {
+        return new Vector3(this.x-point.x,this.y-point.y,this.z-point.z);
+    }
+    @Override
     public Vector3 normalize() {
         double len = length();
         if (len == 0) throw new ArithmeticException("Cannot normalize a zero vector");
@@ -66,17 +71,18 @@ public class Vector3 extends Vector4d {
     }
 
     // ===== Scalar Operations =====
+    @Override
     public Vector3 mul(double scalar) {
         return new Vector3(x * scalar, y * scalar, z * scalar);
     }
-
+    @Override
     public Vector3 div(double scalar) {
         if (scalar == 0) throw new ArithmeticException("Division by zero");
         return new Vector3(x / scalar, y / scalar, z / scalar);
     }
-
+    @Override
     public Vector3 negate() {
-        return this.mul(-1);
+        return new Vector3(this.mul(-1));
     }
 
     // ===== Utility Methods =====

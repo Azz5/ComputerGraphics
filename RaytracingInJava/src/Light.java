@@ -9,8 +9,6 @@ public class Light {
     private Vector3 direction;
     private Type type;
 
-    boolean directional = false; // To determine if it is directional or not if null it is ambient
-
     public Light(double intensity) {
         this.type = Type.Ambient;
         this.intensity = intensity;

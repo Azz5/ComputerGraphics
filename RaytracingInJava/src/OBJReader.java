@@ -9,9 +9,9 @@ import java.util.List;
 
 public class OBJReader {
 
-    public static List<Triangle> readOBJFile(String filePath) throws IOException {
+    public static List<Surface.Triangle> readOBJFile(String filePath) throws IOException {
         List<Point3d> vertices = new ArrayList<>();
-        List<Triangle> triangles = new ArrayList<>();
+        List<Surface.Triangle> triangles = new ArrayList<>();
 
         try (BufferedReader br = new BufferedReader(new FileReader(filePath))) {
             String line;
@@ -36,9 +36,11 @@ public class OBJReader {
                     Point3d pointC = vertices.get(v3);
 
                     // Assuming default material properties for the triangle
-                    Triangle triangle = new Triangle(Color.RED, 0.5, 0.5, 1.0, 0.0, pointA, pointB, pointC);
+                    Surface.Triangle triangle = new Surface.Triangle(Color.RED, -1, 0., 1, 1, pointA, pointB, pointC);
                     triangle.scale(8,8,8);
-                    triangle.transform(new Matrix4d().translate(-0.7,-1,3));
+                    Matrix4d translate = new Matrix4d().translate(-0.7,-1,3);
+                    Matrix4d rotate = new Matrix4d().rotateY(Math.toRadians(180));
+                    triangle.transform(translate.mul(rotate));
                     triangles.add(triangle);
                 }
             }
@@ -49,10 +51,10 @@ public class OBJReader {
 
     public static void main(String[] args) {
         try {
-            List<Triangle> triangles = readOBJFile("Data/bunny.obj");
+            List<Surface.Triangle> triangles = readOBJFile("Data/bunny.obj");
 
-            for (Triangle triangle : triangles) {
-                System.out.println("Triangle: " + triangle.getPointA() + ", " + triangle.getPointB() + ", " + triangle.getPointC());
+            for (Surface.Triangle triangle : triangles) {
+                System.out.println("Surface.Triangle: " + triangle.getPointA() + ", " + triangle.getPointB() + ", " + triangle.getPointC());
             }
         } catch (IOException e) {
             e.printStackTrace();
