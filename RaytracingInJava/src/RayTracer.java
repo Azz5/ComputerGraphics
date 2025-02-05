@@ -2,7 +2,7 @@ import org.joml.Matrix4d;
 import org.joml.Vector4d;
 
 import javax.imageio.ImageIO;
-import java.awt.Color;
+import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
@@ -61,6 +61,7 @@ public class RayTracer {
         );
 
         BufferedImage img = new BufferedImage(Cw+ 1, Ch+ 1, BufferedImage.TYPE_INT_RGB);
+        Frame frame = new Frame();
         IntStream.range(-Cw/2, Cw/2)
                 .parallel()  // process x values in parallel
                 .forEach(x -> {
@@ -79,7 +80,7 @@ public class RayTracer {
         System.out.println("Time taken: " + durationInSeconds + " seconds");
         // Save image
         try {
-            ImageIO.write(img, "PNG", new File("output3.png"));
+            ImageIO.write(img, "PNG", new File("output2.png"));
             System.out.println("Image saved.");
         } catch (IOException fa) {}
 

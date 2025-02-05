@@ -71,7 +71,6 @@ public class World {
     public void add(Surface.Sphere sphere) {
         if (this.spheres == null) {
             this.spheres = new Surface.Sphere[] { sphere };
-            System.out.println(sphere.getColor());
         } else {
             int len = this.spheres.length;
             Surface.Sphere[] newSpheres = new Surface.Sphere[len + 1];

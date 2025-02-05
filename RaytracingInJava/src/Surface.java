@@ -175,6 +175,47 @@ public class Surface {
 
         }
 
+        /**
+         * Creates a Lambertian (diffuse) sphere with the specified albedo.
+         * Uses default geometry: center at (0,0,0) and radius 1.0.
+         * Diffuse materials are assumed to have zero specular highlight and zero reflectivity.
+         */
+        public static Sphere lambertian(Vector3 center,double radius, Color albedo) {
+            double reflective = 0.0;
+            double specular = 0.0;
+            double refraction_index = 1.0;
+            double transparency = 0.0;
+            return new Sphere(center, radius, reflective, albedo, specular, refraction_index, transparency);
+        }
+
+        /**
+         * Creates a metal sphere with the specified albedo and fuzz factor.
+         * Uses default geometry: center at (0,0,0) and radius 1.0.
+         * Metal surfaces are assumed to have high reflectivity.
+         */
+        public static Sphere metal(Vector3 center,double radius,Color albedo, Double fuzz) {
+            double reflective = 1*fuzz;
+            if (fuzz == 0)
+                reflective = 0.35;
+            double specular = 20; // using fuzz as a parameter to control specular blur
+            double refraction_index = 1.0;  // metals don't refract light
+            double transparency = 0.0;
+            return new Sphere(center, radius, reflective, albedo, specular, refraction_index, transparency);
+        }
+
+        /**
+         * Creates a dielectric (glass) sphere with the specified refraction index.
+         * Uses default geometry: center at (0,0,0) and radius 1.0.
+         * Dielectric spheres are typically transparent.
+         */
+        public static Sphere dielectric(Vector3 center,double radius,Double refractionIndex) {
+            double reflective = 0.0;
+            double specular = 0.0;
+            double transparency = 1.0; // fully transparent
+            // Default color for a dielectric is often white or clear.
+            Color defaultColor = new Color(1.0f, 1.0f, 1.0f);
+            return new Sphere(center, radius, reflective, defaultColor, specular, refractionIndex, transparency);
+        }
     }
 
     public static class Cylinder extends Surface{
