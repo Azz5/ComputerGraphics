@@ -1,3 +1,0 @@
-C:/Users/FONDE/CLionProjects/RayTracingExc1CPP/cmake-build-debug/CMakeFiles/RayTracingExc1CPP.dir
-C:/Users/FONDE/CLionProjects/RayTracingExc1CPP/cmake-build-debug/CMakeFiles/edit_cache.dir
-C:/Users/FONDE/CLionProjects/RayTracingExc1CPP/cmake-build-debug/CMakeFiles/rebuild_cache.dir
