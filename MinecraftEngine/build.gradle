@@ -1,0 +1,51 @@
+plugins {
+    id 'java'
+    id 'application'           // ← add this
+}
+
+group = 'org.university'
+version = '1.0-SNAPSHOT'
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    // LWJGL core modules
+    implementation "org.lwjgl:lwjgl:3.3.1"
+    implementation "org.lwjgl:lwjgl-glfw:3.3.1"
+    implementation "org.lwjgl:lwjgl-opengl:3.3.1"
+    implementation "org.lwjgl:lwjgl-stb:3.3.1"
+
+    // JOML math library
+    implementation "org.joml:joml:1.10.5"
+
+    // (Optional extras you might add later)
+    // implementation "org.lwjgl:lwjgl-assimp:3.3.1"
+    // implementation "org.lwjgl:lwjgl-openal:3.3.1"
+
+    // LWJGL natives for your platform (change “windows” to “linux” or “macos” as needed)
+    runtimeOnly "org.lwjgl:lwjgl:3.3.1:natives-windows"
+    runtimeOnly "org.lwjgl:lwjgl-glfw:3.3.1:natives-windows"
+    runtimeOnly "org.lwjgl:lwjgl-opengl:3.3.1:natives-windows"
+    runtimeOnly "org.lwjgl:lwjgl-stb:3.3.1:natives-windows"
+
+    // Testing
+    testImplementation platform('org.junit:junit-bom:5.10.0')
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+}
+
+application {
+    // Fully-qualified name of your Main class:
+    mainClass = 'Main'
+}
+
+test {
+    useJUnitPlatform()
+}
+
+// If you need Java 17 features:
+// java {
+//     sourceCompatibility = JavaVersion.VERSION_17
+//     targetCompatibility = JavaVersion.VERSION_17
+// }
